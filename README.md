@@ -1,2 +1,3 @@
-# react-laravel-provision
-Bash provision scripts to compile and install V8 JS engine and PHPV8 extension for Laravel Homestead.
+###Laravel V8JS Provision
+
+Unfinished and untested provisioning scripts for compiling and installing V8Js engine and PHPV8 extension on Laravel Homestead.
