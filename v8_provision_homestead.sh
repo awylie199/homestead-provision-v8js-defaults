@@ -16,15 +16,15 @@ handleSig() {
     while true; do
         read -erp $'Do you want to cancel script execution? (y/n)\n' EXIT_CHECK
         case $EXIT_CHECK in
-            y | Y )
+            "y*" )
                 'Ok, exiting.'
                 handle
             ;;
-            n | N )
+            "n*" )
                 'Ok, continuing.'
                 break
             ;;
-            * )
+            "*" )
                 "Please enter 'y' or 'n'."
             ;;
         esac
