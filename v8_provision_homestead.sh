@@ -1,74 +1,116 @@
 #!/bin/bash
 # Provisions Laravel Homestead Environment for V8 2.0 Engine and V8PHPJs extensions
-
-# shellcheck source=./install_v8.sh
-# shellcheck source=./install_php_v8.sh
+# https://github.com/phpv8/v8js/blob/master/README.Linux.md
 
 # set -x
 
 # Tput Formatting MAN TERMINFO
-bold=$(tput bold)
-normal=$(tput sgr0)
+BOLD=$(tput bold)
+NORMAL=$(tput sgr0)
+
+INSTALL_V8=0
+INSTALL_PHP_V8=0
+SPECIFIC_V8_VERSION
+
+PHP_LOCATION=$(find /etc -maxdepth 1 -type d -name "php")
+APACHE_MODS=$(find "$PHP_LOCATION" -type d -name "mods-available")
 
 handleSig() {
     shopt -s nocasematch
+    $BOLD
 
     while true; do
         read -erp $'Do you want to cancel script execution? (y/n)\n' EXIT_CHECK
         case $EXIT_CHECK in
             "y*" )
-                'Ok, exiting.'
-                handle
+                printf 'Ok, exiting.\n'
+                exit $?
             ;;
             "n*" )
-                'Ok, continuing.'
+                printf 'Ok, continuing.\n'
                 break
             ;;
             "*" )
-                "Please enter 'y' or 'n'."
+                printf 'Please enter "y" or "n".\n'
             ;;
         esac
     done
 
+    $NORMAL
     shopt -u nocasematch
 }
 
 handleExit() {
     log "Exiting: $?"
+    $NORMAL
     exit $?
 }
 
 log() {
+    $BOLD
     if [[ -n "$1" ]]; then
-        echo "${bold}$1${normal}"
+        printf "%s\n" "$1"
     else
-        echo "${bold}Exiting${normal}"
+        printf "Exiting\n"
     fi
+    $NORMAL
 }
 
 trap "handleExit" EXIT
 trap "handleSig" SIGINT SIGTERM SIGHUP
 
-# Basic Checks
-[[ ! -x "./install_v8.sh" ]] && echo "Can't execute V8 install script (./install_v8.sh)" && exit 1
-[[ ! -x "./install_php_v8.sh" ]] && echo "Can't execute PHPV8Js install script (./install_php_v8.sh)" && exit 2
-[[ ! -x "$(which php)" ]] && echo "Can't find PHP on path" && exit 3
-[[ ! -x "$(which git)" ]] && echo "Can't find git on path" && exit 4
+# Basic Preliminary Checks
+$BOLD
+[[ -x "src/install_v8.sh" ]] || printf "Can't execute V8 install script (src/install_v8.sh)\n" && exit 1
+[[ -x "src/install_php_v8.sh" ]] || printf "Can't execute PHPV8Js install script (src/install_php_v8.sh)\n" && exit 2
+
+[[ -x $(which php) ]] || printf 'Cant find PHP on path.\n' && exit 3
+[[ -x $(which git) ]] || printf 'Cant find git on path.\n' && exit 4
+[[ -x $(which make) ]] || printf 'Cant find make on path.\n' && exit 5
+$NORMAL
 
 cat <<- _INTRO_
-    ${bold}
-        This file compiles and installs the V8js 2.0 engine and PHP V8js extension on the Homestead Vagrant environment.
-    ${normal}
+    This script compiles and installs the V8js 2.0 engine and PHP V8js extension, intended for provisioning  the Homestead Vagrant environment.
+
+    V8 is installed to the /usr directory. ${BOLD}This may overwrite the system copy of V8.${NORMAL}
+
+    https://github.com/talyssonoc/react-laravel/blob/master/install_v8js.md
 _INTRO_
 
 shopt -s nocasematch
 
 while true; do
-    read -erp "Compile and Install V8 2.0 Engine? (y/n)" V8_INSTALL_CHECK
+    read -erp $'Compile and install V8 2.0 engine? (y/n)\n' V8_INSTALL_CHECK
     case $V8_INSTALL_CHECK in
         "y*" )
-            echo "${bold}Installing PHP V8Js extension...${normal}"
-            #. ./install_php_v8.sh;
+            INSTALL_V8=1
+
+            # Check to see whether a specific version is needed
+            while true; do
+                read -er -t 20 -p $'Do you want to build a specific version? (y/n)\n' VERSION_RESPONSE
+                [[ -z $VERSION_RESPONSE ]] && VERSION_RESPONSE='n'
+                case $VERSION_RESPONSE in
+                    "y*" )
+                        while true; do
+                            read -erp $'Which version? (e.g. 4.9.385.28)\n' SPECIFIC_V8_VERSION
+                            if [[ -n $SPECIFIC_V8_VERSION ]]; then
+                                break
+                            else
+                                printf 'Please enter a version. (e.g. 4.9.385.28)\n'
+                                continue;
+                            fi
+                        done
+                        break
+                    ;;
+                    "n*" )
+                        break
+                    ;;
+                    "*" )
+                        printf 'Please enter "y" or "n"\n'
+                        continue
+                esac
+            done
+
             break;
         ;;
         "n*" )
@@ -81,11 +123,44 @@ while true; do
 done
 
 while true; do
-    read -erp "Compile and PHPV8 Js Extension? (y/n)" PHP_INSTALL_CHECK
+    read -erp $'Compile and install PHPV8 JS extension? (y/n)\n' PHP_INSTALL_CHECK
     case $PHP_INSTALL_CHECK in
         "y*" )
-            echo "${bold}Installing V8...${normal}"
-            #. ./install_v8.sh;
+            INSTALL_PHP_V8=1
+
+            # Get mods-available directory
+            # Select PHP Version
+
+            # Get php.ini files
+            if [[ ! -d $PHP_LOCATION ]]; then
+                while true; do
+                    read -erp $'Where is the PHP configuration directory? (Default: /etc/php)\n' PHP_LOCATION
+                    if [[ -d $PHP_LOCATION ]]; then
+                        break;
+                    else
+                        printf 'Please enter a valid directory path.\n'
+                        continue;
+                    fi
+                done
+            fi
+
+            if [[ ! -d $APACHE_MODS ]]; then
+                while true; do
+                    read -erp $'Where is the Apache Mods directory? (Default: /etc/php/<php-version>/mods-available)\n' APACHE_MODS
+                    if [[ -d APACHE_MODS ]]; then
+                        break;
+                    else
+                        continue;
+                    fi
+                done
+            fi
+            # Check if more than one mods directory (i.e. PHP 5.6 and PHP 7.0)
+            if (( $($APACHE_MODS | wc -l) > 1 )); then
+                select MOD in $APACHE_MODS; do
+                    printf "Using %s\n" "$MOD"
+                done
+            fi
+
             break;
         ;;
         "n*" )
@@ -99,5 +174,27 @@ done
 
 shopt -u nocasematch
 
-echo "${bold}Install Successful${normal}"
+if (( INSTALL_V8 != 0 )); then
+    ${BOLD}
+    echo "Installing V8 2.0: "
+    if [[ -n $SPECIFIC_V8_VERSION  ]]; then
+        printf "%s\n" "$SPECIFIC_V8_VERSION"
+    else
+        echo "Latest"
+    fi
+    ${NORMAL}
+    . src/install_v8.sh
+fi
+
+if (( INSTALL_PHP_V8 != 0 )); then
+    ${BOLD}
+    printf "Installing PHP V8Js extension...\n"
+    . src/install_php_v8.sh
+    ${NORMAL}
+fi
+
+${BOLD}
+printf "Install Successful\n"
+${NORMAL}
+
 exit 0
