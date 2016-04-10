@@ -7,18 +7,18 @@
 DEPOT_TOOLS_REPO="https://chromium.googlesource.com/chromium/tools/depot_tools.git"
 DEPOT_TOOLS="depot_tools"
 
-${BOLD}
-cd /tmp || printf "Can't enter /tmp directory.\n" && exit 1
-${NORMAL}
+BOLD
+cd /tmp || printf "Can't enter /tmp directory.\n" && exit 126
+NORMAL
 
 # Install depot_tools first (needed for source checkout)
 if [[ ! -d $DEPOT_TOOLS ]]; then
     git clone $DEPOT_TOOLS_REPO $DEPOT_TOOLS
 fi
 
-${BOLD}
-(( $? == 0 )) && [[ -d $DEPOT_TOOLS ]] || printf "Failed cloning chromium depot tools.\n" && exit 2
-${NORMAL}
+BOLD
+(( $? == 0 )) && [[ -d $DEPOT_TOOLS ]] || printf "Failed cloning chromium depot tools.\n" && exit 1
+NORMAL
 
 PATH=$PATH:$(pwd)/${DEPOT_TOOLS}
 export PATH
@@ -26,9 +26,9 @@ export PATH
 # Download v8
 fetch v8
 
-${BOLD}
-cd v8 || printf "Can't enter fetched v8 directory.\n" && exit 3
-${NORMAL}
+BOLD
+cd v8 || printf "Can't enter fetched v8 directory.\n" && exit 126
+NORMAL
 
 if [[ -n $SPECIFIC_V8_VERSION ]]; then
     git checkout "$SPECIFIC_V8_VERSION"
@@ -36,7 +36,7 @@ if [[ -n $SPECIFIC_V8_VERSION ]]; then
         gclient sync
     else
         printf "Failed checkout of version: %s\n" "$SPECIFIC_V8_VERSION"
-        exit 4
+        exit 1
     fi
 fi
 
